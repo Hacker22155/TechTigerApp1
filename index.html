@@ -3,230 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ভয়েস সার্চ</title>
-
+    <title>DK Assistant</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f2f2f2;
-            padding: 50px;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
         }
 
         .container {
+            width: 80%;
             max-width: 600px;
-            margin: 0 auto;
             background-color: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
         }
 
-        h1 {
-            color: #333;
-        }
-
-        #response {
-            margin-top: 20px;
+        .chat-box {
+            height: 400px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
             padding: 10px;
-            background-color: #e7f7e7;
-            border: 1px solid #d4f4d4;
-            border-radius: 5px;
-            font-size: 18px;
-            animation: fadeIn 1s ease-out;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
+            background-color: #007BFF;
             color: white;
+            padding: 15px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            width: 100%;
             font-size: 16px;
-            margin-top: 20px;
-            transition: all 0.3s ease;
-        }
-
-        button.stop {
-            background-color: #f44336;
         }
 
         button:hover {
-            background-color: #45a049;
-            transform: scale(1.1);
+            background-color: #0056b3;
         }
 
-        button.stop:hover {
-            background-color: #e53935;
-            transform: scale(1.1);
+        .message {
+            background-color: #e4e4e4;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+            text-align: left;
         }
 
-        #mic-icon {
-            font-size: 50px;
-            cursor: pointer;
-            margin-top: 30px;
-            animation: micPulse 1.5s infinite ease-in-out;
+        .assistant-message {
+            background-color: #d1e7ff;
+            text-align: right;
         }
 
-        .spinner {
-            display: none;
-            margin-top: 20px;
-            font-size: 30px;
-            animation: spin 1.5s linear infinite;
+        .user-message {
+            background-color: #e4e4e4;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
+        /* রোবটিক অ্যানিমেশন */
+        .robot-animation {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background-color: #007BFF;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            animation: moveAround 3s linear infinite;
         }
 
-        @keyframes micPulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.2);
-            }
+        @keyframes moveAround {
+            0% { transform: translateX(-50%) translateY(0); }
+            25% { transform: translateX(-50%) translateY(-30px); }
+            50% { transform: translateX(50%) translateY(0); }
+            75% { transform: translateX(-50%) translateY(30px); }
+            100% { transform: translateX(-50%) translateY(0); }
         }
 
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+        /* চারপাশে রোবটিক থিম */
+        .robot-theme {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: -1;
+            animation: robotBorder 5s linear infinite;
+        }
+
+        @keyframes robotBorder {
+            0% { border: 2px solid #007BFF; }
+            50% { border: 2px solid #00ffcc; }
+            100% { border: 2px solid #007BFF; }
         }
     </style>
 </head>
 <body>
+
+    <div class="robot-theme"></div> <!-- রোবট থিমের অ্যানিমেশন চারপাশে -->
     <div class="container">
-        <h1>ভয়েস দিয়ে প্রশ্ন করুন</h1>
-        <div id="response">আপনার প্রশ্নের উত্তর এখানে আসবে...</div>
-        <button id="startBtn">শুরু করুন</button>
-        <button id="stopBtn" class="stop" style="display: none;">স্টপ</button>
-        <i id="mic-icon" class="fa fa-microphone"></i>
-        <div id="spinner" class="spinner">🔄</div> <!-- Spinner animation -->
+        <div class="chat-box" id="chat-box"></div>
+        <button id="start-btn">Start Speaking</button>
+        <button id="stop-btn" style="display: none;">Stop</button>
+        <div class="robot-animation" id="robot-animation" style="display: none;"></div> <!-- রোবটিক অ্যানিমেশন -->
     </div>
 
     <script>
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const responseDiv = document.getElementById('response');
-        const micIcon = document.getElementById('mic-icon');
-        const spinner = document.getElementById('spinner');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const chatBox = document.getElementById('chat-box');
+        const robotAnimation = document.getElementById('robot-animation');
 
         let recognition;
-        let isRecognizing = false;
-        let query = '';
+        let synth = window.speechSynthesis;
+        let data = [];
 
-        // Load JSON data
-        let data = {};
-        fetch('https://hacker22155.github.io/TechTigerApp1/data.json')
+        // JSON ফাইল থেকে ইনফরমেশন লোড করা
+        fetch('https://raw.githubusercontent.com/Hacker22155/TechTigerApp1/data.json')
             .then(response => response.json())
             .then(jsonData => {
                 data = jsonData;
             })
             .catch(err => console.error("Error loading JSON file:", err));
 
-        function initializeSpeechRecognition() {
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'bn-BD'; // বাংলা ভাষায়
-            recognition.continuous = true;
+        // ভয়েস রেকগনিশন সেটআপ
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.lang = 'bn-BD';
             recognition.interimResults = true;
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                displayMessage('user', transcript);  // ইউজারের মেসেজ ডিসপ্লে
 
-            recognition.onstart = function () {
-                isRecognizing = true;
-                startBtn.disabled = true;
-                stopBtn.style.display = 'inline-block';
-                responseDiv.textContent = 'শোনা হচ্ছে...';
-                spinner.style.display = 'inline-block'; // Show spinner
-            };
-
-            recognition.onresult = function (event) {
-                let currentQuery = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    currentQuery += event.results[i][0].transcript;
-                }
-                responseDiv.textContent = 'আপনার প্রশ্ন: ' + currentQuery;
-                query = currentQuery;  // Update query with the latest input
-            };
-
-            recognition.onerror = function (event) {
-                console.error(event.error);
-                responseDiv.textContent = 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।';
-                stopRecognition();
-            };
-
-            recognition.onend = function () {
-                if (isRecognizing) {
-                    recognition.start();
+                const answer = getAnswer(transcript);  // প্রশ্নের উত্তর খোঁজা
+                if (answer) {
+                    speakAnswer(answer);  // ভয়েসে উত্তর দেয়া
+                    displayMessage('assistant', answer);  // অ্যাসিস্ট্যান্টের মেসেজ ডিসপ্লে
                 }
             };
+        } else {
+            alert('Your browser does not support Speech Recognition!');
         }
 
-        function startRecognition() {
-            if (!recognition) {
-                initializeSpeechRecognition();
-            }
+        // স্টার্ট বাটনে ক্লিক করলে ভয়েস রেকগনিশন শুরু হবে
+        startBtn.onclick = () => {
             recognition.start();
-        }
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            robotAnimation.style.display = 'block';  // রোবটিক অ্যানিমেশন শুরু
+        };
 
-        function stopRecognition() {
-            isRecognizing = false;
+        // স্টপ বাটনে ক্লিক করলে রেকগনিশন থামবে
+        stopBtn.onclick = () => {
             recognition.stop();
-            startBtn.disabled = false;
+            startBtn.style.display = 'inline-block';
             stopBtn.style.display = 'none';
-            spinner.style.display = 'none'; // Hide spinner
-            processQuery(query);  // Process the final query after stopping
-        }
+            robotAnimation.style.display = 'none';  // রোবটিক অ্যানিমেশন বন্ধ
+        };
 
-        function processQuery(query) {
-            responseDiv.textContent = 'উত্তর পাওয়া যাচ্ছে...';
-            searchJsonData(query);
-        }
+        // ডাটা থেকে প্রশ্নের উত্তর খোঁজা
+        function getAnswer(question) {
+            let response = '';
+            question = question.toLowerCase();  // প্রশ্নটাকে ছোট অক্ষরে রূপান্তর
 
-        function searchJsonData(query) {
-            let found = false;
-
-            // Check JSON data for matching
-            for (let key in data) {
-                if (data[key].toLowerCase().includes(query.toLowerCase())) {
-                    responseDiv.textContent = data[key];  // Show the answer from JSON
-                    speakAnswer(data[key]);
-                    found = true;
-                    break;
+            // ইনফরমেশন অনুসারে মিল খুঁজে বের করা
+            data.forEach(item => {
+                if (item.info.toLowerCase().includes(question)) {
+                    response = item.info;  // মিললে উত্তর দিয়ে দেয়া
                 }
-            }
+            });
 
-            if (!found) {
-                responseDiv.textContent = 'ডাটাতে কোনো তথ্য পাওয়া যায়নি।';
-                speakAnswer('ডাটাতে কোনো তথ্য পাওয়া যায়নি।');
-            }
+            return response;
         }
 
+        // ভয়েসে উত্তর দেওয়া
         function speakAnswer(answer) {
-            const speechSynthesis = window.speechSynthesis;
             const utterance = new SpeechSynthesisUtterance(answer);
-            utterance.lang = 'bn-BD'; // বাংলা ভাষায়
-            speechSynthesis.speak(utterance);
+            utterance.lang = 'bn-BD';
+            synth.speak(utterance);
         }
 
-        startBtn.addEventListener('click', startRecognition);
-        stopBtn.addEventListener('click', stopRecognition);
-
-        micIcon.addEventListener('click', function () {
-            if (isRecognizing) {
-                stopRecognition();
+        // মেসেজ ডিসপ্লে করা
+        function displayMessage(sender, message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            if (sender === 'assistant') {
+                messageElement.classList.add('assistant-message');
             } else {
-                startRecognition();
+                messageElement.classList.add('user-message');
             }
-        });
+            messageElement.textContent = message;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;  // স্ক্রল করা যাতে সর্বশেষ মেসেজ দেখা যায়
+        }
     </script>
 
 </body>
