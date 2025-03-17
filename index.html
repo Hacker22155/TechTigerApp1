@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>চ্যাটবট</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        #chat-container {
+            width: 50%;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px #ccc;
+        }
+        #chat-box {
+            height: 300px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .user-msg, .bot-msg {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .user-msg {
+            background: #d3f8d3;
+            text-align: right;
+        }
+        .bot-msg {
+            background: #f1f1f1;
+            text-align: left;
+        }
+        input {
+            width: 70%;
+            padding: 10px;
+        }
+        button {
+            padding: 10px;
+            background: blue;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <div id="chat-box"></div>
+        <input type="text" id="user-input" placeholder="আপনার প্রশ্ন টাইপ করুন..." />
+        <button onclick="getAnswer()">প্রশ্ন করুন</button>
+    </div>
+
+    <script>
+        let data = [];
+
+        // JSON ফাইল লোড করা
+        fetch('https://raw.githubusercontent.com/Hacker22155/TechTigerApp1/main/data.json')
+            .then(response => response.json())
+            .then(jsonData => {
+                data = jsonData;
+            })
+            .catch(err => console.error("Error loading JSON file:", err));
+
+        function getAnswer() {
+            let userQuestion = document.getElementById('user-input').value;
+
+            let bestMatch = findBestMatch(userQuestion);
+
+            displayMessage(userQuestion, 'user');
+            displayMessage(bestMatch, 'bot');
+        }
+
+        function findBestMatch(question) {
+            let bestMatch = "দুঃখিত, আমি বুঝতে পারছি না!";
+            let maxScore = 0;
+
+            data.forEach(entry => {
+                let score = similarity(question, entry.information);
+                if (score > maxScore) {
+                    maxScore = score;
+                    bestMatch = entry.information;
+                }
+            });
+
+            return bestMatch;
+        }
+
+        function similarity(str1, str2) {
+            let words1 = str1.toLowerCase().split(" ");
+            let words2 = str2.toLowerCase().split(" ");
+            let matchCount = 0;
+
+            words1.forEach(word => {
+                if (words2.includes(word)) {
+                    matchCount++;
+                }
+            });
+
+            return matchCount;
+        }
+
+        function displayMessage(message, sender) {
+            let chatBox = document.getElementById('chat-box');
+            let msgDiv = document.createElement('div');
+            msgDiv.classList.add(sender === 'user' ? 'user-msg' : 'bot-msg');
+            msgDiv.innerText = message;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+
+</body>
+</html>
