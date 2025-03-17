@@ -77,6 +77,12 @@
                             let userQuestion = event.results[0][0].transcript;
                             displayMessage(userQuestion, 'user');
 
+                            if (userQuestion.trim() === "") {
+                                displayMessage("দুঃখিত, আমি কিছু শুনতে পারিনি। আবার চেষ্টা করুন।", 'bot');
+                                speak("দুঃখিত, আমি কিছু শুনতে পারিনি। আবার চেষ্টা করুন।");
+                                return;
+                            }
+
                             let bestMatch = findBestMatch(userQuestion);
                             displayMessage(bestMatch, 'bot');
                             speak(bestMatch); // বটের উত্তর ভয়েসে বলাবে
@@ -84,6 +90,8 @@
 
                         recognition.onerror = function(event) {
                             console.error("Error recognizing speech:", event);
+                            displayMessage("দুঃখিত, আমি আপনার কথা শুনতে পারছি না।", 'bot');
+                            speak("দুঃখিত, আমি আপনার কথা শুনতে পারছি না।");
                         };
                     })
                     .catch(err => {
