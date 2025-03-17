@@ -3,107 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>গুগল অ্যাসিস্ট্যান্ট স্টাইল চ্যাটবট</title>
+    <title>এআই সহকারী</title>
     <style>
         body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #121212;
-            color: white;
-            text-align: center;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             margin: 0;
-            padding: 0;
+            background-color: #f0f0f0;
         }
 
-        #chat-container {
-            width: 70%;
-            margin: 50px auto;
-            background: #1e1e1e;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.3);
+        .container {
+            text-align: center;
         }
 
-        #chat-box {
-            height: 400px;
-            overflow-y: scroll;
-            background-color: #333;
-            border-radius: 10px;
-            padding: 20px;
+        .robot-face {
+            width: 100px;
+            height: 100px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            margin: 20px auto;
             position: relative;
-            margin-bottom: 20px;
         }
 
-        .user-msg, .bot-msg {
-            padding: 12px 18px;
-            border-radius: 20px;
-            margin: 15px 0;
-            max-width: 75%;
-            display: inline-block;
-            opacity: 0;
-            transform: translateX(-20px);
-            animation: fadeIn 0.5s forwards;
+        .robot-face:before {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            left: 25%;
         }
 
-        .user-msg {
-            background: #6200ea;
-            color: white;
-            text-align: right;
+        .robot-face:after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 25%;
+            right: 25%;
         }
 
-        .bot-msg {
-            background: #03dac6;
-            color: white;
-            text-align: left;
+        .response {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
         }
 
         button {
-            padding: 14px 28px;
-            background: #6200ea;
-            color: white;
-            border: none;
-            border-radius: 50px;
+            margin-top: 30px;
+            padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
-            transition: background 0.3s;
         }
 
-        button:hover {
-            background: #3700b3;
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(360deg); }
         }
-
-        @keyframes fadeIn {
-            0% {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        input {
-            width: 80%;
-            padding: 12px;
-            font-size: 16px;
-            border: 1px solid #6200ea;
-            border-radius: 50px;
-            margin-bottom: 10px;
-            background: #121212;
-            color: white;
-        }
-
     </style>
 </head>
 <body>
-
-    <div id="chat-container">
-        <div id="chat-box"></div>
-        <button onclick="startListening()">প্রশ্ন করুন</button>
+    <div class="container">
+        <div id="robotFace" class="robot-face"></div>
+        <div id="response" class="response">এখানে উত্তর দেখাবে</div>
+        <button id="startBtn" onclick="startListening()">শুরু করুন</button>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/compromise"></script>
     <script>
-        let data = [];
+        let data = {};
+        let dictionary = {
+            "কম্পিউটার": "কম্পিউটার",
+            "ল্যাপটপ": "ল্যাপটপ",
+            "ইন্টারনেট": "ইন্টারনেট",
+            "বিশ্ববিদ্যালয়": "বিশ্ববিদ্যালয়"
+        };
 
         // JSON ফাইল লোড করা
         fetch('https://raw.githubusercontent.com/Hacker22155/TechTigerApp1/data.json')
@@ -113,90 +95,68 @@
             })
             .catch(err => console.error("Error loading JSON file:", err));
 
+        let recognition;
+        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = "bn-BD";
+            recognition.continuous = false;
+
+            recognition.onstart = function () {
+                document.getElementById('robotFace').style.animation = 'rotate 1s linear infinite';
+            };
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                processQuery(transcript);
+            };
+
+            recognition.onend = function () {
+                document.getElementById('robotFace').style.animation = '';
+            };
+
+            recognition.onerror = function (event) {
+                console.error("Error occurred: ", event.error);
+            };
+        }
+
         function startListening() {
-            // মাইক্রোফোন পারমিশন চাইছে
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(stream => {
-                        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-                        recognition.lang = "bn-BD";
-                        recognition.start();
-
-                        recognition.onresult = function(event) {
-                            let userQuestion = event.results[0][0].transcript;
-                            displayMessage(userQuestion, 'user');
-
-                            if (userQuestion.trim() === "") {
-                                displayMessage("দুঃখিত, আমি কিছু শুনতে পারিনি। আবার চেষ্টা করুন।", 'bot');
-                                speak("দুঃখিত, আমি কিছু শুনতে পারিনি। আবার চেষ্টা করুন।");
-                                return;
-                            }
-
-                            let bestMatch = findBestMatch(userQuestion);
-                            displayMessage(bestMatch, 'bot');
-                            speak(bestMatch); // বটের উত্তর ভয়েসে বলাবে
-                        };
-
-                        recognition.onerror = function(event) {
-                            console.error("Error recognizing speech:", event);
-                            displayMessage("দুঃখিত, আমি আপনার কথা শুনতে পারছি না।", 'bot');
-                            speak("দুঃখিত, আমি আপনার কথা শুনতে পারছি না।");
-                        };
-                    })
-                    .catch(err => {
-                        console.error("Microphone access denied:", err);
-                    });
-            } else {
-                alert("এই ব্রাউজারটি ভয়েস রেকগনিশন সমর্থন করে না।");
+            if (recognition) {
+                recognition.start();
             }
         }
 
-        function findBestMatch(question) {
-            let bestMatch = "দুঃখিত, আমি বুঝতে পারছি না!";
-            let maxScore = 0;
+        function processQuery(query) {
+            // বানান সংশোধন
+            query = correctSpelling(query);
 
-            data.forEach(entry => {
-                let score = similarity(question, entry.information);
-                if (score > maxScore) {
-                    maxScore = score;
-                    bestMatch = entry.information;
+            let responseText = 'দুঃখিত, আমি আপনার প্রশ্ন বুঝতে পারছি না।';
+            
+            // NLP দিয়ে প্রশ্নটি চেক করা
+            let doc = nlp(query);
+            let intents = doc.topics().out('array');
+            
+            for (let key in data) {
+                if (query.toLowerCase().includes(key.toLowerCase())) {
+                    responseText = data[key];
+                    break;
                 }
-            });
+            }
 
-            return bestMatch;
+            document.getElementById('response').innerText = responseText;
+            speakResponse(responseText);
         }
 
-        function similarity(str1, str2) {
-            let words1 = str1.toLowerCase().split(" ");
-            let words2 = str2.toLowerCase().split(" ");
-            let matchCount = 0;
-
-            words1.forEach(word => {
-                if (words2.includes(word)) {
-                    matchCount++;
-                }
-            });
-
-            return matchCount;
+        function correctSpelling(text) {
+            let words = text.split(' ');
+            words = words.map(word => dictionary[word] || word);
+            return words.join(' ');
         }
 
-        function displayMessage(message, sender) {
-            let chatBox = document.getElementById('chat-box');
-            let msgDiv = document.createElement('div');
-            msgDiv.classList.add(sender === 'user' ? 'user-msg' : 'bot-msg');
-            msgDiv.innerText = message;
-            chatBox.appendChild(msgDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
-        // বটের উত্তর ভয়েসে বলাবে
-        function speak(text) {
-            let speech = new SpeechSynthesisUtterance();
-            speech.lang = "bn-BD";
-            speech.text = text;
+        function speakResponse(text) {
+            const speech = new SpeechSynthesisUtterance(text);
+            speech.lang = 'bn-BD';
             window.speechSynthesis.speak(speech);
         }
     </script>
-
 </body>
 </html>
