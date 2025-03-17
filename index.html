@@ -3,162 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>এআই সহকারী</title>
+    <title>ভয়েস সার্চ</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
+            text-align: center;
+            background-color: #f2f2f2;
+            padding: 50px;
         }
 
         .container {
-            text-align: center;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
-        .robot-face {
-            width: 100px;
-            height: 100px;
-            background-color: #4CAF50;
-            border-radius: 50%;
-            margin: 20px auto;
-            position: relative;
-        }
-
-        .robot-face:before {
-            content: '';
-            width: 20px;
-            height: 20px;
-            background-color: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 25%;
-            left: 25%;
-        }
-
-        .robot-face:after {
-            content: '';
-            width: 20px;
-            height: 20px;
-            background-color: white;
-            border-radius: 50%;
-            position: absolute;
-            top: 25%;
-            right: 25%;
-        }
-
-        .response {
-            margin-top: 20px;
-            font-size: 18px;
+        h1 {
             color: #333;
         }
 
-        button {
-            margin-top: 30px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #e7f7e7;
+            border: 1px solid #d4f4d4;
+            border-radius: 5px;
+            font-size: 18px;
         }
 
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            50% { transform: rotate(180deg); }
-            100% { transform: rotate(360deg); }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        button.stop {
+            background-color: #f44336;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button.stop:hover {
+            background-color: #e53935;
+        }
+
+        #mic-icon {
+            font-size: 40px;
+            cursor: pointer;
+            margin-top: 30px;
+        }
+
+        #live-transcript {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+            font-weight: bold;
+            padding: 10px;
+            background-color: #e0f7fa;
+            border: 1px solid #4caf50;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .animation {
+            border: 2px solid #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            margin-top: 20px;
+            animation: pulse 1s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.6;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 0.6;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="robotFace" class="robot-face"></div>
-        <div id="response" class="response">এখানে উত্তর দেখাবে</div>
-        <button id="startBtn" onclick="startListening()">শুরু করুন</button>
+        <h1>ভয়েস দিয়ে প্রশ্ন করুন</h1>
+        <div id="response">আপনার প্রশ্নের উত্তর এখানে আসবে...</div>
+        <div id="live-transcript">আপনি যা বলছেন: <span id="live-text"></span></div>
+        <button id="startBtn">শুরু করুন</button>
+        <button id="stopBtn" class="stop" style="display: none;">স্টপ</button>
+        <i id="mic-icon" class="fa fa-microphone"></i>
+        <div id="animation" class="animation" style="display: none;"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/compromise"></script>
     <script>
-        let data = {};
-        let dictionary = {
-            "কম্পিউটার": "কম্পিউটার",
-            "ল্যাপটপ": "ল্যাপটপ",
-            "ইন্টারনেট": "ইন্টারনেট",
-            "বিশ্ববিদ্যালয়": "বিশ্ববিদ্যালয়"
-        };
-
-        // JSON ফাইল লোড করা
-        fetch('https://raw.githubusercontent.com/Hacker22155/TechTigerApp1/data.json')
-            .then(response => response.json())
-            .then(jsonData => {
-                data = jsonData;
-            })
-            .catch(err => console.error("Error loading JSON file:", err));
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const responseDiv = document.getElementById('response');
+        const micIcon = document.getElementById('mic-icon');
+        const liveTranscript = document.getElementById('live-transcript');
+        const liveText = document.getElementById('live-text');
+        const animation = document.getElementById('animation');
 
         let recognition;
-        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        let isRecognizing = false;
+        let query = '';
+
+        function initializeSpeechRecognition() {
             recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = "bn-BD";
-            recognition.continuous = false;
+            recognition.lang = 'bn-BD'; // বাংলা ভাষায়
+            recognition.continuous = true;
+            recognition.interimResults = true;
 
             recognition.onstart = function () {
-                document.getElementById('robotFace').style.animation = 'rotate 1s linear infinite';
+                isRecognizing = true;
+                startBtn.disabled = true;
+                stopBtn.style.display = 'inline-block';
+                responseDiv.textContent = 'শোনা হচ্ছে...';
+                liveTranscript.style.display = 'block';
+                animation.style.display = 'block'; // Animation on when recording
             };
 
             recognition.onresult = function (event) {
-                const transcript = event.results[0][0].transcript;
-                console.log("User said:", transcript); // ইউজারের বলার টেক্সট দেখাবে
-                processQuery(transcript);
-            };
-
-            recognition.onend = function () {
-                document.getElementById('robotFace').style.animation = '';
+                let currentQuery = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    currentQuery += event.results[i][0].transcript;
+                }
+                liveText.textContent = currentQuery; // Show live transcription
+                query = currentQuery;  // Update query with the latest input
             };
 
             recognition.onerror = function (event) {
-                console.error("Error occurred: ", event.error);
+                console.error(event.error);
+                responseDiv.textContent = 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।';
+                stopRecognition();
+            };
+
+            recognition.onend = function () {
+                if (isRecognizing) {
+                    recognition.start();
+                }
             };
         }
 
-        function startListening() {
-            if (recognition) {
-                console.log("Listening...");
-                recognition.start(); // ভয়েস রেকগনিশন শুরু হবে
+        function startRecognition() {
+            if (!recognition) {
+                initializeSpeechRecognition();
             }
+            recognition.start();
+        }
+
+        function stopRecognition() {
+            isRecognizing = false;
+            recognition.stop();
+            startBtn.disabled = false;
+            stopBtn.style.display = 'none';
+            liveTranscript.style.display = 'none';
+            animation.style.display = 'none'; // Hide animation when stopped
+            processQuery(query);  // Process the final query after stopping
         }
 
         function processQuery(query) {
-            // বানান সংশোধন
-            query = correctSpelling(query);
+            responseDiv.textContent = 'উত্তর পাওয়া যাচ্ছে...';
+            fetchDataFromJson(query);  // Fetch data from JSON instead of Google
+        }
 
-            let responseText = 'দুঃখিত, আমি আপনার প্রশ্ন বুঝতে পারছি না।';
-            
-            // NLP দিয়ে প্রশ্নটি চেক করা
-            let doc = nlp(query);
-            let intents = doc.topics().out('array');
-            
-            for (let key in data) {
-                if (query.toLowerCase().includes(key.toLowerCase())) {
-                    responseText = data[key];
-                    break;
-                }
+        function fetchDataFromJson(query) {
+            fetch('https://raw.githubusercontent.com/Hacker22155/TechTigerApp1/data.json')
+                .then(response => response.json())
+                .then(jsonData => {
+                    // Assuming the jsonData is an array of questions and answers
+                    const answer = jsonData.find(item => item.question === query)?.answer || 'কোনো তথ্য পাওয়া যায়নি';
+                    responseDiv.textContent = answer;
+                    speakAnswer(answer);
+                })
+                .catch(error => {
+                    console.error("Error loading JSON file:", error);
+                    responseDiv.textContent = 'ডাটা লোড করতে সমস্যা হয়েছে।';
+                    speakAnswer('ডাটা লোড করতে সমস্যা হয়েছে।');
+                });
+        }
+
+        function speakAnswer(answer) {
+            const speechSynthesis = window.speechSynthesis;
+            const utterance = new SpeechSynthesisUtterance(answer);
+            utterance.lang = 'bn-BD'; // বাংলা ভাষায়
+            speechSynthesis.speak(utterance);
+        }
+
+        startBtn.addEventListener('click', startRecognition);
+        stopBtn.addEventListener('click', stopRecognition);
+
+        micIcon.addEventListener('click', function () {
+            if (isRecognizing) {
+                stopRecognition();
+            } else {
+                startRecognition();
             }
-
-            document.getElementById('response').innerText = responseText;
-            speakResponse(responseText);
-        }
-
-        function correctSpelling(text) {
-            let words = text.split(' ');
-            words = words.map(word => dictionary[word] || word);
-            return words.join(' ');
-        }
-
-        function speakResponse(text) {
-            const speech = new SpeechSynthesisUtterance(text);
-            speech.lang = 'bn-BD';
-            window.speechSynthesis.speak(speech);
-        }
+        });
     </script>
 </body>
 </html>
