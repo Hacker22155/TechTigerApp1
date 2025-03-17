@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ভয়েস সার্চ</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,6 +33,7 @@
             border: 1px solid #d4f4d4;
             border-radius: 5px;
             font-size: 18px;
+            animation: fadeIn 1s ease-out;
         }
 
         button {
@@ -43,6 +45,7 @@
             cursor: pointer;
             font-size: 16px;
             margin-top: 20px;
+            transition: all 0.3s ease;
         }
 
         button.stop {
@@ -51,51 +54,52 @@
 
         button:hover {
             background-color: #45a049;
+            transform: scale(1.1);
         }
 
         button.stop:hover {
             background-color: #e53935;
+            transform: scale(1.1);
         }
 
         #mic-icon {
-            font-size: 40px;
+            font-size: 50px;
             cursor: pointer;
             margin-top: 30px;
+            animation: micPulse 1.5s infinite ease-in-out;
         }
 
-        #live-transcript {
-            margin-top: 20px;
-            font-size: 18px;
-            color: #333;
-            font-weight: bold;
-            padding: 10px;
-            background-color: #e0f7fa;
-            border: 1px solid #4caf50;
-            border-radius: 5px;
+        .spinner {
             display: none;
-        }
-
-        .animation {
-            border: 2px solid #4CAF50;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
             margin-top: 20px;
-            animation: pulse 1s infinite ease-in-out;
+            font-size: 30px;
+            animation: spin 1.5s linear infinite;
         }
 
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                opacity: 0.6;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
             }
-            50% {
-                transform: scale(1.5);
+            to {
                 opacity: 1;
             }
-            100% {
+        }
+
+        @keyframes micPulse {
+            0%, 100% {
                 transform: scale(1);
-                opacity: 0.6;
+            }
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
             }
         }
     </style>
@@ -104,11 +108,10 @@
     <div class="container">
         <h1>ভয়েস দিয়ে প্রশ্ন করুন</h1>
         <div id="response">আপনার প্রশ্নের উত্তর এখানে আসবে...</div>
-        <div id="live-transcript">আপনি যা বলছেন: <span id="live-text"></span></div>
         <button id="startBtn">শুরু করুন</button>
         <button id="stopBtn" class="stop" style="display: none;">স্টপ</button>
         <i id="mic-icon" class="fa fa-microphone"></i>
-        <div id="animation" class="animation" style="display: none;"></div>
+        <div id="spinner" class="spinner">🔄</div> <!-- Spinner animation -->
     </div>
 
     <script>
@@ -116,13 +119,20 @@
         const stopBtn = document.getElementById('stopBtn');
         const responseDiv = document.getElementById('response');
         const micIcon = document.getElementById('mic-icon');
-        const liveTranscript = document.getElementById('live-transcript');
-        const liveText = document.getElementById('live-text');
-        const animation = document.getElementById('animation');
+        const spinner = document.getElementById('spinner');
 
         let recognition;
         let isRecognizing = false;
         let query = '';
+
+        // Load JSON data
+        let data = {};
+        fetch('https://hacker22155.github.io/TechTigerApp1/data.json')
+            .then(response => response.json())
+            .then(jsonData => {
+                data = jsonData;
+            })
+            .catch(err => console.error("Error loading JSON file:", err));
 
         function initializeSpeechRecognition() {
             recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
@@ -135,8 +145,7 @@
                 startBtn.disabled = true;
                 stopBtn.style.display = 'inline-block';
                 responseDiv.textContent = 'শোনা হচ্ছে...';
-                liveTranscript.style.display = 'block';
-                animation.style.display = 'block'; // Animation on when recording
+                spinner.style.display = 'inline-block'; // Show spinner
             };
 
             recognition.onresult = function (event) {
@@ -144,7 +153,7 @@
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     currentQuery += event.results[i][0].transcript;
                 }
-                liveText.textContent = currentQuery; // Show live transcription
+                responseDiv.textContent = 'আপনার প্রশ্ন: ' + currentQuery;
                 query = currentQuery;  // Update query with the latest input
             };
 
@@ -173,30 +182,32 @@
             recognition.stop();
             startBtn.disabled = false;
             stopBtn.style.display = 'none';
-            liveTranscript.style.display = 'none';
-            animation.style.display = 'none'; // Hide animation when stopped
+            spinner.style.display = 'none'; // Hide spinner
             processQuery(query);  // Process the final query after stopping
         }
 
         function processQuery(query) {
             responseDiv.textContent = 'উত্তর পাওয়া যাচ্ছে...';
-            fetchDataFromJson(query);  // Fetch data from JSON instead of Google
+            searchJsonData(query);
         }
 
-        function fetchDataFromJson(query) {
-            fetch('https://raw.githubusercontent.com/Hacker22155/TechTigerApp1/data.json')
-                .then(response => response.json())
-                .then(jsonData => {
-                    // Assuming the jsonData is an array of questions and answers
-                    const answer = jsonData.find(item => item.question === query)?.answer || 'কোনো তথ্য পাওয়া যায়নি';
-                    responseDiv.textContent = answer;
-                    speakAnswer(answer);
-                })
-                .catch(error => {
-                    console.error("Error loading JSON file:", error);
-                    responseDiv.textContent = 'ডাটা লোড করতে সমস্যা হয়েছে।';
-                    speakAnswer('ডাটা লোড করতে সমস্যা হয়েছে।');
-                });
+        function searchJsonData(query) {
+            let found = false;
+
+            // Check JSON data for matching
+            for (let key in data) {
+                if (data[key].toLowerCase().includes(query.toLowerCase())) {
+                    responseDiv.textContent = data[key];  // Show the answer from JSON
+                    speakAnswer(data[key]);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                responseDiv.textContent = 'ডাটাতে কোনো তথ্য পাওয়া যায়নি।';
+                speakAnswer('ডাটাতে কোনো তথ্য পাওয়া যায়নি।');
+            }
         }
 
         function speakAnswer(answer) {
@@ -217,5 +228,6 @@
             }
         });
     </script>
+
 </body>
 </html>
