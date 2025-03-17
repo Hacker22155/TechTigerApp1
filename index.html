@@ -37,10 +37,6 @@
             background: #f1f1f1;
             text-align: left;
         }
-        input {
-            width: 70%;
-            padding: 10px;
-        }
         button {
             padding: 10px;
             background: blue;
@@ -54,8 +50,7 @@
 
     <div id="chat-container">
         <div id="chat-box"></div>
-        <input type="text" id="user-input" placeholder="আপনার প্রশ্ন টাইপ করুন..." />
-        <button onclick="getAnswer()">প্রশ্ন করুন</button>
+        <button onclick="startListening()">প্রশ্ন করুন</button>
     </div>
 
     <script>
@@ -69,13 +64,34 @@
             })
             .catch(err => console.error("Error loading JSON file:", err));
 
-        function getAnswer() {
-            let userQuestion = document.getElementById('user-input').value;
+        function startListening() {
+            // মাইক্রোফোন পারমিশন চাইছে
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                        recognition.lang = "bn-BD";
+                        recognition.start();
 
-            let bestMatch = findBestMatch(userQuestion);
+                        recognition.onresult = function(event) {
+                            let userQuestion = event.results[0][0].transcript;
+                            displayMessage(userQuestion, 'user');
 
-            displayMessage(userQuestion, 'user');
-            displayMessage(bestMatch, 'bot');
+                            let bestMatch = findBestMatch(userQuestion);
+                            displayMessage(bestMatch, 'bot');
+                            speak(bestMatch); // বটের উত্তর ভয়েসে বলাবে
+                        };
+
+                        recognition.onerror = function(event) {
+                            console.error("Error recognizing speech:", event);
+                        };
+                    })
+                    .catch(err => {
+                        console.error("Microphone access denied:", err);
+                    });
+            } else {
+                alert("এই ব্রাউজারটি ভয়েস রেকগনিশন সমর্থন করে না।");
+            }
         }
 
         function findBestMatch(question) {
@@ -114,6 +130,14 @@
             msgDiv.innerText = message;
             chatBox.appendChild(msgDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // বটের উত্তর ভয়েসে বলাবে
+        function speak(text) {
+            let speech = new SpeechSynthesisUtterance();
+            speech.lang = "bn-BD";
+            speech.text = text;
+            window.speechSynthesis.speak(speech);
         }
     </script>
 
